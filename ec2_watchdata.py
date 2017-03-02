@@ -64,6 +64,9 @@ class WatchData:
         self.cw = CloudWatchConnection()
         self.autoscale = AutoScaleConnection()
         g = self.autoscale.get_all_groups(names=[self.name])
+        if len(g) < 1:
+          print("No instances found for AutoScaling group {}".format(self.name))
+          sys.exit(1)
         self.group = self.autoscale.get_all_groups(names=[self.name])[0]
         self.instances = len(self.group.instances)
         self.desired = self.group.desired_capacity
