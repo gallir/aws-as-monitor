@@ -9,7 +9,6 @@ import smtplib
 from email.mime.text import MIMEText
 import subprocess
 import os
-import logging
 
 import boto
 from ec2_watchdata import WatchData
@@ -68,7 +67,6 @@ def main():
     data.exponential_average = alpha * data.avg_load + (
         1 - alpha) * prev_data.exponential_average
     data.trend = 2 * data.exponential_average - prev_data.exponential_average
-    print prev_data.exponential_average, data.exponential_average, data.trend
 
     if data.instances != prev_data.instances:
         data.previous_instances = prev_data.instances
