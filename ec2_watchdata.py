@@ -142,7 +142,7 @@ class WatchData:
                     instance] > 1 and load > self.high_urgent:
                 self.emergency = True
                 self.action = "EMERGENCY HIGH (%s %5.2f%%) " % (instance, load)
-                if self.instances > 1 and load > self.avg_load * 1.5:
+                if self.instances > 1 and load > self.avg_load * 1.4:  # kill if it consumes more than 40% of the average
                     self.action += " killing bad instance"
                     self.kill_instance(instance)
                 else:
