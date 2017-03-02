@@ -13,7 +13,6 @@ from boto.ec2.cloudwatch import CloudWatchConnection
 
 
 class WatchData:
-    datafile = "/var/tmp/watchdata.p"
     dry = False
     low_limit = 70
     low_counter_limit = 0
@@ -23,8 +22,9 @@ class WatchData:
     stats_period = 60
     history_size = 0
 
-    def __init__(self):
-        self.name = ''
+    def __init__(self, name):
+        self.name = name
+        self.datafile = "/var/tmp/watchdata-{}.p".format(self.name)
         self.instances = 0
         self.new_desired = 0
         self.desired = 0
@@ -59,14 +59,15 @@ class WatchData:
         del d['instances_info']
         return d
 
-    def connect(self, groupname):
+    def connect(self):
         self.ec2 = boto.connect_ec2()
         self.cw = CloudWatchConnection()
         self.autoscale = AutoScaleConnection()
-        self.group = self.autoscale.get_all_groups(names=[groupname])[0]
+        g = self.autoscale.get_all_groups(names=[self.name])
+        self.group = self.autoscale.get_all_groups(names=[self.name])[0]
         self.instances = len(self.group.instances)
         self.desired = self.group.desired_capacity
-        self.name = groupname
+        self.name = self.name
         self.ts = int(time.time())
 
     def get_instances_info(self):
@@ -101,24 +102,18 @@ class WatchData:
             measures = self.measures[instance] = len(m)
             ordered = sorted(m, key=lambda x: x['Timestamp'])
             return ordered[-1]['Average']  # Return last measure
-            """ 
-			averages = [ x['Average'] for x in ordered]
-			average = reduce(lambda x, y: 0.4*x + 0.6*y, averages[-2:])
-			return average
-			"""
 
         return None
 
-    @classmethod
-    def from_file(cls):
+    def from_file(self):
         try:
-            data = pickle.load(open(cls.datafile, "rb"))
+            data = pickle.load(open(self.datafile, "rb"))
         except:
-            data = WatchData()
+            data = WatchData('_previous')
 
         return data
 
-    def store(self, annotation=False):
+    def store(self):
         if self.history_size > 0:
             if not self.history: self.history = []
             self.history.append([
@@ -128,11 +123,6 @@ class WatchData:
             self.history = self.history[-self.history_size:]
 
         pickle.dump(self, open(self.datafile, "wb"))
-
-        if annotation:
-            import utils
-            text = json.dumps(self.__getstate__(), skipkeys=True)
-            utils.store_annotation("ec2_watch", text)
 
     def check_too_low(self):
         for instance, load in self.loads.iteritems():

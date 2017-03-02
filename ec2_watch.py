@@ -18,7 +18,7 @@ def main():
     global configuration
 
     now = int(time.time())
-    data = WatchData()
+    data = WatchData(configuration.group)
     """ Set default class values """
     if configuration.dry:
         WatchData.dry = True
@@ -36,19 +36,20 @@ def main():
         WatchData.high_counter_limit = configuration.high_counter
 
     try:
-        data.connect(configuration.group)
+        data.connect()
         data.get_CPU_loads()
     except boto.exception.BotoServerError:
         print("Error in Boto")
         return
 
-    prev_data = WatchData.from_file()
+    prev_data = data.from_file()
     """ Retrieve and calculate previous values in the current instance """
     data.action_ts = int(prev_data.action_ts)
     data.action = prev_data.action
     data.up_ts = int(prev_data.up_ts)
     data.down_ts = int(prev_data.down_ts)
     data.history = prev_data.history
+
     try:
         data.low_counter = int(prev_data.low_counter)
     except AttributeError:
@@ -57,6 +58,7 @@ def main():
         data.high_counter = int(prev_data.high_counter)
     except AttributeError:
         data.high_counter = 0
+
     """ Calculate the trend, increasing or decreasing CPU usage """
     alpha = min((data.ts - prev_data.ts) / 60.0 * 0.3, 1)
     data.exponential_average = alpha * data.avg_load + (
@@ -97,13 +99,13 @@ def main():
         if not data.check_too_low():
             data.check_too_high()
 
-    if now - data.changed_ts > 300 and now - data.action_ts > 300:
+    if now - data.changed_ts > 600 and now - data.action_ts > 600:
         data.check_avg_high()
 
-    if now - data.changed_ts > 300 and now - data.action_ts > 300 and now - data.up_ts > 1800:
+    if now - data.changed_ts > 600 and now - data.action_ts > 600 and now - data.up_ts > 1800:
         data.check_avg_low()
 
-    data.store(configuration.annotation)
+    data.store()
 
     if configuration.mail and data.emergency:
         sendmail(data, configuration.mail)
@@ -117,20 +119,15 @@ def sendmail(data, to):
             [
                 os.path.join(
                     os.path.dirname(os.path.realpath(__file__)),
-                    "ec2_instances.py")
+                    "ec2_instances.py"),
+
+                "-g", data.name,
+                "-a"
             ],
             stdout=subprocess.PIPE)
         (report, err) = p.communicate()
     except Exception as e:
         report = unicode(e)
-
-    try:
-        p = os.path.dirname(
-            os.path.abspath(__file__)) + "/" + "summary_access.py"
-        p = subprocess.Popen([p, "*", "-M", "4"], stdout=subprocess.PIPE)
-        (summary, err) = p.communicate()
-    except Exception as e:
-        summary = unicode(e)
 
     msg = MIMEText("Action: " + data.action + "\n\nINSTANCES SUMMARY:\n" +
                    unicode(report) + "\n\n" + unicode(summary))
@@ -146,11 +143,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--group", "-g", default="web", help="AutoScaler group")
-    parser.add_argument(
-        "--annotation",
-        "-a",
-        action="store_true",
-        help="Store data in Meneame database as annotation")
     parser.add_argument(
         "--history",
         "-H",

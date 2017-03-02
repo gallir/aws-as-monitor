@@ -10,8 +10,8 @@ def main():
     global configuration
 
     WatchData.stats_period = 60  # Show just last measure
-    data = WatchData()
-    data.connect(configuration.group)
+    data = WatchData(configuration.group)
+    data.connect()
     data.get_instances_info()
     """ Check if we must change the desired instances """
     if configuration.instances > 1:
