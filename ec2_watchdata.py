@@ -24,7 +24,7 @@ class WatchData:
 
     def __init__(self, name):
         self.name = name
-        self.datafile = "/var/tmp/watchdata-{}.p".format(self.name)
+        self.datafile = "/tmp/watchdata-{}.p".format(self.name)
         self.instances = 0
         self.new_desired = 0
         self.desired = 0

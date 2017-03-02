@@ -9,6 +9,7 @@ import smtplib
 from email.mime.text import MIMEText
 import subprocess
 import os
+import logging
 
 import boto
 from ec2_watchdata import WatchData
