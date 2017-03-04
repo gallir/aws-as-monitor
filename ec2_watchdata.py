@@ -149,7 +149,8 @@ class WatchData:
                 if self.avg_load < self.high_limit:
                     self.set_desired(self.instances - 1)
                 return True
-            elif load > self.high_urgent:
+
+            if load > self.high_urgent:
                 self.emergency = True
                 self.action = "Emergency: high load in one instance (%s %5.2f%%) " % (instance, load)
                 self.action += " increasing instances to %d" % (self.instances + 1, )
