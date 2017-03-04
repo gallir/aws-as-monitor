@@ -97,6 +97,10 @@ def main():
         '%Y-%m-%d %H:%M:%S', time.localtime(data.up_ts)), time.strftime(
             '%Y-%m-%d %H:%M:%S', time.localtime(data.down_ts)))
 
+    if now - data.down_ts > LONG_PERIOD and now - data.up_ts > 60:
+        print "Check high"
+        data.check_too_high()
+
     if now - data.changed_ts > LONG_PERIOD and now - data.action_ts > LONG_PERIOD:
         if not data.check_too_low():
             data.check_too_high()
@@ -132,7 +136,7 @@ def sendmail(data, to):
         report = unicode(e)
 
     msg = MIMEText("Action: " + data.action + "\n\nINSTANCES SUMMARY:\n" +
-                   unicode(report) + "\n\n" + unicode(summary))
+                   unicode(report))
     msg['Subject'] = "Watch warning"
     msg['From'] = getpass.getuser()
     msg['To'] = configuration.mail

@@ -132,8 +132,7 @@ class WatchData:
             if load is not None and self.measures[
                     instance] > 1 and self.instances > 1 and load < self.avg_load * 0.2 and load < 4:
                 self.emergency = True
-                self.check_avg_low(
-                )  # Check if the desired instanes can be decreased
+                self.check_avg_low() # Check if the desired instanes can be decreased
                 self.action = "EMERGENCY LOW (%s %5.2f%%) " % (instance, load)
                 self.kill_instance(instance)
                 return True
@@ -141,17 +140,20 @@ class WatchData:
 
     def check_too_high(self):
         for instance, load in self.loads.iteritems():
-            if load is not None and self.measures[
-                    instance] > 1 and load > self.high_urgent:
+            if load is None or self.measures[instance] <= 1:
+                continue
+            if self.instances > 2 and load > self.avg_load * 1.4:  # kill if it consumes more than 40% of the average
                 self.emergency = True
-                self.action = "EMERGENCY HIGH (%s %5.2f%%) " % (instance, load)
-                if self.instances > 1 and load > self.avg_load * 1.4:  # kill if it consumes more than 40% of the average
-                    self.action += " killing bad instance"
-                    self.kill_instance(instance)
-                else:
-                    self.action += " increasing instances to %d" % (
-                        self.instances + 1, )
-                    self.set_desired(self.instances + 1)
+                self.action = "Emergency: kill bad instance with high load (%s %5.2f%%) " % (instance, load)
+                self.kill_instance(instance)
+                if self.avg_load < self.high_limit:
+                    self.set_desired(self.instances - 1)
+                return True
+            elif load > self.high_urgent:
+                self.emergency = True
+                self.action = "Emergency: high load in one instance (%s %5.2f%%) " % (instance, load)
+                self.action += " increasing instances to %d" % (self.instances + 1, )
+                self.set_desired(self.instances + 1)
                 return True
 
         return self.emergency
