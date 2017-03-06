@@ -98,7 +98,7 @@ def main():
         '%Y-%m-%d %H:%M:%S', time.localtime(data.up_ts)), time.strftime(
             '%Y-%m-%d %H:%M:%S', time.localtime(data.down_ts)))
 
-    if now - data.down_ts > LONG_PERIOD and now - data.action_ts > EMERGENCY_PERIOD and now - data.up_ts > EMERGENCY_PERIOD:
+    if now - data.down_ts > LONG_PERIOD and now - data.action_ts > EMERGENCY_PERIOD and now - data.up_ts > SHORT_PERIOD:
         data.check_too_high()
 
     if now - data.changed_ts > LONG_PERIOD and now - data.action_ts > LONG_PERIOD:
