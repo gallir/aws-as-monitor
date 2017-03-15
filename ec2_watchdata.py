@@ -133,7 +133,7 @@ class WatchData:
                     instance] > 1 and self.instances > 1 and load < self.avg_load * 0.2 and load < 4:
                 self.emergency = True
                 self.check_avg_low() # Check if the desired instanes can be decreased
-                self.action = "EMERGENCY LOW (%s %5.2f%%) " % (instance, load)
+                self.action = "Warning: terminated instance with low load (%s %5.2f%%) " % (instance, load)
                 self.kill_instance(instance)
                 return True
         return self.emergency
