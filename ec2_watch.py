@@ -13,7 +13,7 @@ import os
 import boto
 from ec2_watchdata import WatchData
 
-LONG_PERIOD = 900 # to check too high or too load
+LONG_PERIOD = 1080 # to check too low or low average
 SHORT_PERIOD = 600 # to check averages
 EMERGENCY_PERIOD = 120 # to check situations like very high in one instance
 
