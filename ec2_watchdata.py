@@ -160,6 +160,10 @@ class WatchData:
         return self.emergency
 
     def check_avg_high(self):
+        if self.instances >= self.group.max_size:
+            self.high_counter = 0
+            return False
+
         threshold = self.high_limit
         if self.instances == 1:
             threshold = threshold * 0.90  # Increase faster if there is just one instance
@@ -217,7 +221,7 @@ class WatchData:
                       (self.instances, desired, self.action))
         if self.dry:
             return
-        if desired >= self.group.min_size:
+        if desired >= self.group.min_size and desired <= self.group.max_size:
             self.group.set_capacity(desired)
         self.action_ts = time.time()
         self.new_desired = desired
