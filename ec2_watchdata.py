@@ -249,6 +249,6 @@ class WatchData:
         if self.dry:
             return
         if desired >= self.min_size and desired <= self.max_size:
-            self.group.set_desired_capacity(AutoScalingGroupName=self.name, DesiredCapacity=desired)
+            self.autoscale.set_desired_capacity(AutoScalingGroupName=self.name, DesiredCapacity=desired)
         self.action_ts = time.time()
         self.new_desired = desired
