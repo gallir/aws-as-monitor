@@ -138,7 +138,7 @@ class WatchData:
                 self.emergency = True
                 self.check_avg_low() # Check if the desired instanes can be decreased
                 self.action = "Warning: terminated instance with low load (%s %5.2f%%) " % (instance, load)
-                self.kill_instance(instance)
+                self.kill_instance(instance, True)
                 return True
         return self.emergency
 
@@ -149,9 +149,11 @@ class WatchData:
             if self.instances > 2 and load > self.avg_load * 1.4:  # kill if it consumes more than 40% of the average
                 self.emergency = True
                 self.action = "Emergency: kill bad instance with high load (%s %5.2f%%) " % (instance, load)
-                self.kill_instance(instance)
                 if self.avg_load < self.high_limit:
-                    self.set_desired(self.instances - 1)
+                    decrement = True
+                else:
+                    decrement = False
+                self.kill_instance(instance, decrement)
                 return True
 
             if load > self.high_urgent:
@@ -205,7 +207,7 @@ class WatchData:
         else:
             self.low_counter = 0
 
-    def kill_instance(self, id):
+    def kill_instance(self, id, decrement):
         if self.action:
             print(self.action)
         print("Kill instance", id)
@@ -214,7 +216,7 @@ class WatchData:
                       (id, self.instances, self.action))
         if self.dry:
             return
-        self.ec2.terminate_instances(instance_ids=[id])
+        self.autoscale.terminate_instance_in_auto_scaling_group(InstanceId=id, ShouldDecrementDesiredCapacity=decrement)
         self.action_ts = time.time()
 
     def set_desired(self, desired):

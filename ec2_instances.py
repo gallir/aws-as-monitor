@@ -25,7 +25,7 @@ def main():
 
     if configuration.kill:
         if configuration.kill in [x.id for x in data.instances_info]:
-            data.kill_instance(configuration.kill)
+            data.kill_instance(configuration.kill, True)
         else:
             print "Instance", configuration.kill, "doesn't exist"
 
