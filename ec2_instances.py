@@ -34,8 +34,8 @@ def main():
     data.get_CPU_loads()
 
     print "Group values: instances: %d min: %d max: %d desired: %d Launch config: %s" % (
-        data.instances, data.group.min_size, data.group.max_size,
-        data.group.desired_capacity, data.group.launch_config_name)
+        data.instances, data.min_size, data.max_size,
+        data.desired, data.group['LaunchConfigurationName'])
 
     for instance in data.instances_info:
 
