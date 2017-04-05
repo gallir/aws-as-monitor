@@ -86,7 +86,7 @@ def main():
     print "%s values: instances: %d min: %d max: %d desired: %d" % (
         configuration.group, data.instances, data.min_size,
         data.max_size, data.desired)
-    print "Average load: %5.2f%% Trend: %5.2f" % (data.avg_load, data.trend)
+    print "Average load: %5.2f%% Trend: %5.2f Max: %5.2f Min: %5.2f" % (data.avg_load, data.trend, data.max_load, data.min_load)
     if data.instances > 1:
         print "Average load with %d instances: %5.2f%%" % (
             data.instances - 1, data.total_load / (data.instances - 1))

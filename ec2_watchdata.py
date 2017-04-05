@@ -36,11 +36,13 @@ class WatchData:
         self.total_load = 0
         self.avg_load = 0
         self.max_load = 0
+        self.min_load = 100000
         self.up_ts = 0
         self.down_ts = 0
         self.low_counter = 0  # count the consecutive times a low conditions has been observed
         self.high_counter = 0  # count the consecutive times a high conditions has been observed
         self.max_loaded = None
+        self.min_loaded = None
         self.loads = {}
         self.measures = {}
         self.emergency = False
@@ -83,20 +85,27 @@ class WatchData:
 
     def get_CPU_loads(self):
         """ Read instances load and store in data """
-        measures = 0
         for instance in [i['InstanceId'] for i in self.group['Instances']]:
             load = self.get_instance_CPU_load(instance)
             if load is None:
                 continue
-            measures += 1
             self.total_load += load
             self.loads[instance] = load
             if load > self.max_load:
                 self.max_load = load
                 self.max_loaded = instance
+            if load < self.min_load:
+                self.min_load = load
+                self.min_loaded = instance
+
+        measures = total_load = 0
+        for instance, load in self.loads.iteritems():
+            if len(self.loads) < 3 or (instance != self.max_loaded and instance != self.min_loaded):
+                measures += 1
+                total_load += load
 
         if measures > 0:
-            self.avg_load = self.total_load / measures
+            self.avg_load = total_load / measures
 
     def get_instance_CPU_load(self, instance):
         end = datetime.datetime.now()
