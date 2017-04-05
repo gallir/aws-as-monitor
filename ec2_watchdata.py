@@ -63,7 +63,7 @@ class WatchData:
 
     def connect(self):
         self.ec2 = boto.connect_ec2()
-        self.cw = CloudWatchConnection()
+        self.cw = boto3.client('cloudwatch')
         self.autoscale = boto3.client('autoscaling')
         g = self.autoscale.describe_auto_scaling_groups(AutoScalingGroupNames=[self.name], MaxRecords=100)
         
@@ -112,11 +112,22 @@ class WatchData:
         start = end - datetime.timedelta(seconds=int(self.stats_period * 3))
 
         m = self.cw.get_metric_statistics(
-            self.stats_period, start, end, "CPUUtilization", "AWS/EC2",
-            ["Average"], {"InstanceId": instance})
-        if len(m) > 0:
-            measures = self.measures[instance] = len(m)
-            ordered = sorted(m, key=lambda x: x['Timestamp'])
+            Namespace="AWS/EC2",
+            MetricName="CPUUtilization", 
+            Dimensions=[{"Name": "InstanceId", "Value": instance}],
+            StartTime=start,
+            EndTime=end,
+            Period=self.stats_period,
+            Statistics=["Average"],
+            Unit="Percent",
+            )
+
+        if m['ResponseMetadata']['HTTPStatusCode'] != 200:
+          return None
+
+        if len(m['Datapoints']) > 0:
+            self.measures[instance] = len(m['Datapoints'])
+            ordered = sorted(m['Datapoints'], key=lambda x: x['Timestamp'])
             return ordered[-1]['Average']  # Return last measure
 
         return None
