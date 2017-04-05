@@ -8,8 +8,6 @@ import json
 import syslog
 
 import boto3
-import boto
-from boto.ec2.cloudwatch import CloudWatchConnection
 
 
 class WatchData:
@@ -28,7 +26,7 @@ class WatchData:
         self.instances = 0
         self.new_desired = 0
         self.desired = 0
-        self.instances_info = None
+        self.instances_info = {}
         self.previous_instances = 0
         self.action = ""
         self.action_ts = 0
@@ -54,23 +52,20 @@ class WatchData:
     def __getstate__(self):
         """ Don't store these objets """
         d = self.__dict__.copy()
-        del d['ec2']
-        del d['cw']
         del d['autoscale']
+        del d['cw']
         del d['group']
         del d['instances_info']
         return d
 
     def connect(self):
-        self.ec2 = boto.connect_ec2()
-        self.cw = boto3.client('cloudwatch')
         self.autoscale = boto3.client('autoscaling')
+        self.cw = boto3.client('cloudwatch')
         g = self.autoscale.describe_auto_scaling_groups(AutoScalingGroupNames=[self.name], MaxRecords=100)
         
         if len(g) < 1:
           print("No instances found for AutoScaling group {}".format(self.name))
           sys.exit(1)
-        #self.group = self.autoscale.get_all_groups(names=[self.name])[0]
         self.group = g['AutoScalingGroups'][0]
         self.instances = len(self.group['Instances']) # TODO: Check "InService"
         self.desired = self.group['DesiredCapacity']
@@ -80,8 +75,12 @@ class WatchData:
         self.ts = int(time.time())
 
     def get_instances_info(self):
+        ec2 = boto3.client('ec2')
         ids = [i['InstanceId'] for i in self.group['Instances']]
-        self.instances_info = self.ec2.get_only_instances(instance_ids=ids)
+        instances = ec2.describe_instances(InstanceIds=ids)
+        for r in instances['Reservations']:
+            for i in r['Instances']:
+                self.instances_info[i['InstanceId']] = i
 
     def get_CPU_loads(self):
         """ Read instances load and store in data """
@@ -127,8 +126,10 @@ class WatchData:
 
         if len(m['Datapoints']) > 0:
             self.measures[instance] = len(m['Datapoints'])
-            ordered = sorted(m['Datapoints'], key=lambda x: x['Timestamp'])
-            return ordered[-1]['Average']  # Return last measure
+            p =  [x['Average'] for x in m['Datapoints']]
+            return sum(p)/len(p)
+            # ordered = sorted(m['Datapoints'], key=lambda x: x['Timestamp'])
+            # return ordered[-1]['Average']  # Return last measure
 
         return None
 

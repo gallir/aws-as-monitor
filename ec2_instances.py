@@ -37,19 +37,19 @@ def main():
         data.instances, data.min_size, data.max_size,
         data.desired, data.group['LaunchConfigurationName'])
 
-    for instance in data.instances_info:
+    for i, d in data.instances_info.iteritems():
 
-        if instance.id in data.loads:
-            load = data.loads[instance.id]
+        if i in data.loads:
+            load = data.loads[i]
         else:
             load = 0
 
-        print "%s %5.2f%% %s %s" % (instance.id, load, instance._state.name,
-                                    instance.image_id),
+        print "%s %5.2f%% %s %s" % (i, load, d['State']['Name'], d['ImageId']),
+        print "%s %s %-15s" % ( d['InstanceType'], d['Placement']['AvailabilityZone'],
+                d['NetworkInterfaces'][0]['PrivateIpAddress']), 
         if configuration.all:
-            print "%s %s %-15s %s" % (
-                instance.instance_type, instance._placement,
-                instance.private_ip_address, instance.dns_name, )
+          print "%-15s" % (
+                d['NetworkInterfaces'][0]['PrivateDnsName'])
         else:
             print
 
