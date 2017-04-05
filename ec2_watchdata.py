@@ -7,8 +7,8 @@ import pickle
 import json
 import syslog
 
+import boto3
 import boto
-from boto.ec2.autoscale import AutoScaleConnection
 from boto.ec2.cloudwatch import CloudWatchConnection
 
 
@@ -62,34 +62,38 @@ class WatchData:
     def connect(self):
         self.ec2 = boto.connect_ec2()
         self.cw = CloudWatchConnection()
-        self.autoscale = AutoScaleConnection()
-        g = self.autoscale.get_all_groups(names=[self.name])
+        self.autoscale = boto3.client('autoscaling')
+        g = self.autoscale.describe_auto_scaling_groups(AutoScalingGroupNames=[self.name], MaxRecords=100)
+        
         if len(g) < 1:
           print("No instances found for AutoScaling group {}".format(self.name))
           sys.exit(1)
-        self.group = self.autoscale.get_all_groups(names=[self.name])[0]
-        self.instances = len(self.group.instances)
-        self.desired = self.group.desired_capacity
+        #self.group = self.autoscale.get_all_groups(names=[self.name])[0]
+        self.group = g['AutoScalingGroups'][0]
+        self.instances = len(self.group['Instances']) # TODO: Check "InService"
+        self.desired = self.group['DesiredCapacity']
+        self.max_size = self.group['MaxSize']
+        self.min_size = self.group['MinSize']
         self.name = self.name
         self.ts = int(time.time())
 
     def get_instances_info(self):
-        ids = [i.instance_id for i in self.group.instances]
+        ids = [i['InstanceId'] for i in self.group['Instances']]
         self.instances_info = self.ec2.get_only_instances(instance_ids=ids)
 
     def get_CPU_loads(self):
         """ Read instances load and store in data """
         measures = 0
-        for instance in self.group.instances:
-            load = self.get_instance_CPU_load(instance.instance_id)
+        for instance in [i['InstanceId'] for i in self.group['Instances']]:
+            load = self.get_instance_CPU_load(instance)
             if load is None:
                 continue
             measures += 1
             self.total_load += load
-            self.loads[instance.instance_id] = load
+            self.loads[instance] = load
             if load > self.max_load:
                 self.max_load = load
-                self.max_loaded = instance.instance_id
+                self.max_loaded = instance
 
         if measures > 0:
             self.avg_load = self.total_load / measures
@@ -120,7 +124,7 @@ class WatchData:
         if self.history_size > 0:
             if not self.history: self.history = []
             self.history.append([
-                int(time.time()), len(self.group.instances),
+                int(time.time()), len(self.group['Instances']),
                 int(round(self.total_load)), int(round(self.avg_load))
             ])
             self.history = self.history[-self.history_size:]
@@ -160,7 +164,7 @@ class WatchData:
         return self.emergency
 
     def check_avg_high(self):
-        if self.instances >= self.group.max_size:
+        if self.instances >= self.max_size:
             self.high_counter = 0
             return False
 
@@ -182,7 +186,7 @@ class WatchData:
             self.high_counter = 0
 
     def check_avg_low(self):
-        if self.instances <= self.group.min_size:
+        if self.instances <= self.min_size:
             self.low_counter = 0
             return False
 
@@ -221,7 +225,7 @@ class WatchData:
                       (self.instances, desired, self.action))
         if self.dry:
             return
-        if desired >= self.group.min_size and desired <= self.group.max_size:
-            self.group.set_capacity(desired)
+        if desired >= self.min_size and desired <= self.max_size:
+            self.group.set_desired_capacity(AutoScalingGroupName=self.name, DesiredCapacity=desired)
         self.action_ts = time.time()
         self.new_desired = desired

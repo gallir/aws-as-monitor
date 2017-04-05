@@ -84,8 +84,8 @@ def main():
         data.changed_ts = int(prev_data.changed_ts)
 
     print "%s values: instances: %d min: %d max: %d desired: %d" % (
-        configuration.group, data.instances, data.group.min_size,
-        data.group.max_size, data.group.desired_capacity)
+        configuration.group, data.instances, data.min_size,
+        data.max_size, data.desired)
     print "Average load: %5.2f%% Trend: %5.2f" % (data.avg_load, data.trend)
     if data.instances > 1:
         print "Average load with %d instances: %5.2f%%" % (
