@@ -117,6 +117,8 @@ def main():
 
 
 def sendmail(data, to):
+    global configuration
+
     print "Sending email to", to
     """ Generate a report """
     try:
@@ -134,7 +136,7 @@ def sendmail(data, to):
     except Exception as e:
         report = unicode(e)
 
-    msg = MIMEText("Action: " + data.action + "\n\nINSTANCES SUMMARY:\n" +
+    msg = MIMEText("Action: " + data.action + "\n\n" + configuration.group + " INSTANCES SUMMARY:\n" +
                    unicode(report))
     msg['Subject'] = "Watch warning"
     msg['From'] = getpass.getuser()
