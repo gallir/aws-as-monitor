@@ -24,6 +24,8 @@ class WatchData:
         self.name = name
         self.datafile = "/tmp/watchdata-{}.p".format(self.name)
         self.instances = 0
+        self.max_size = 0
+        self.min_size = 0
         self.new_desired = 0
         self.desired = 0
         self.instances_info = {}
@@ -237,6 +239,11 @@ class WatchData:
                       (id, self.instances, self.action))
         if self.dry:
             return
+
+        if self.min_size > 0 and decrement and self.instances <= self.min_size:
+            decrement = False
+            syslog.syslog(syslog.LOG_INFO, "Forced to create a new instance")
+
         self.autoscale.terminate_instance_in_auto_scaling_group(InstanceId=id, ShouldDecrementDesiredCapacity=decrement)
         self.action_ts = time.time()
 
