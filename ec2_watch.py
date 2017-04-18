@@ -36,8 +36,10 @@ def main():
         WatchData.history_size = configuration.history
     if configuration.low_counter:
         WatchData.low_counter_limit = configuration.low_counter
-    if configuration.low_counter:
+    if configuration.high_counter:
         WatchData.high_counter_limit = configuration.high_counter
+    if configuration.kill_counter:
+        WatchData.kill_counter_limit = configuration.kill_counter
 
     try:
         data.connect()
@@ -178,6 +180,11 @@ if __name__ == '__main__':
         type=int,
         default=2,
         help="Minimum times above limit before increasing fleet")
+    parser.add_argument(
+        "--kill_counter",
+        type=int,
+        default=3,
+        help="Minimum times above limit before killing a bad instance")
     parser.add_argument(
         "--high",
         "-high",

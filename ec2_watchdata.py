@@ -15,6 +15,7 @@ class WatchData:
     low_limit = 70
     low_counter_limit = 0
     high_counter_limit = 0
+    kill_counter_limit = 0
     high_limit = 90
     high_urgent = 95
     stats_period = 60
@@ -41,6 +42,7 @@ class WatchData:
         self.down_ts = 0
         self.low_counter = 0  # count the consecutive times a low conditions has been observed
         self.high_counter = 0  # count the consecutive times a high conditions has been observed
+        self.kill_counter = 0  # count the consecutive times a kill instance condition has been obseirved
         self.max_loaded = None
         self.min_loaded = None
         self.loads = {}
@@ -170,14 +172,17 @@ class WatchData:
             if load is None or self.measures[instance] <= 1:
                 continue
             if self.instances > 2 and load > self.avg_load * 1.4:  # kill if it consumes more than 40% of the average
-                self.emergency = True
-                self.action = "Emergency: kill bad instance with high load (%s %5.2f%%) " % (instance, load)
-                if self.avg_load < self.high_limit:
-                    decrement = True
-                else:
-                    decrement = False
-                self.kill_instance(instance, decrement)
-                return True
+                self.kill_counter += 1
+                if self.kill_counter > self.kill_counter_limit:
+                    self.emergency = True
+                    self.action = "Emergency: kill bad instance with high load (%s %5.2f%%) " % (instance, load)
+                    if self.avg_load < self.high_limit:
+                        decrement = True
+                    else:
+                        decrement = False
+                    self.kill_counter = 0
+                    self.kill_instance(instance, decrement)
+                    return True
 
             if load > self.high_urgent:
                 self.emergency = True
