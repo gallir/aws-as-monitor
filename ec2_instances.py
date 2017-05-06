@@ -45,11 +45,18 @@ def main():
             load = 0
 
         print "%s %5.2f%% %s %s" % (i, load, d['State']['Name'], d['ImageId']),
-        print "%s %s %-15s" % ( d['InstanceType'], d['Placement']['AvailabilityZone'],
+        try:
+            print "%s %s %-15s" % ( d['InstanceType'], d['Placement']['AvailabilityZone'],
                 d['NetworkInterfaces'][0]['PrivateIpAddress']), 
+        except:
+          pass
+
         if configuration.all:
-          print "%-15s" % (
+          try:
+              print "%-15s" % (
                 d['NetworkInterfaces'][0]['PrivateDnsName'])
+          except:
+              pass
         else:
             print
 
