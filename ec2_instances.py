@@ -41,10 +41,11 @@ def main():
 
         if i in data.loads:
             load = data.loads[i]
+            print "%s %5.2f%% %s %s" % (i, load, d['State']['Name'], d['ImageId']),
         else:
-            load = 0
+            load = "N/A"
+            print "%s N/A    %s %s" % (i, d['State']['Name'], d['ImageId']),
 
-        print "%s %5.2f%% %s %s" % (i, load, d['State']['Name'], d['ImageId']),
         try:
             print "%s %s %-15s" % ( d['InstanceType'], d['Placement']['AvailabilityZone'],
                 d['NetworkInterfaces'][0]['PrivateIpAddress']), 

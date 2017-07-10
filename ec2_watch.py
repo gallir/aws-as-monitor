@@ -178,12 +178,12 @@ if __name__ == '__main__':
     parser.add_argument(
         "--high_counter",
         type=int,
-        default=2,
+        default=3,
         help="Minimum times above limit before increasing fleet")
     parser.add_argument(
         "--kill_counter",
         type=int,
-        default=3,
+        default=15,
         help="Minimum times above limit before killing a bad instance")
     parser.add_argument(
         "--high",

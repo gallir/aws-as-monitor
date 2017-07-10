@@ -71,7 +71,7 @@ class WatchData:
           print("No instances found for AutoScaling group {}".format(self.name))
           sys.exit(1)
         self.group = g['AutoScalingGroups'][0]
-        self.instances = len(self.group['Instances']) # TODO: Check "InService"
+        self.instances = len([i for i in self.group['Instances'] if i['LifecycleState'] == 'InService']) # Check "InService"
         self.desired = self.group['DesiredCapacity']
         self.max_size = self.group['MaxSize']
         self.min_size = self.group['MinSize']
@@ -80,7 +80,7 @@ class WatchData:
 
     def get_instances_info(self):
         ec2 = boto3.client('ec2')
-        ids = [i['InstanceId'] for i in self.group['Instances']]
+        ids = [i['InstanceId'] for i in self.group['Instances'] ]
         instances = ec2.describe_instances(InstanceIds=ids)
         for r in instances['Reservations']:
             for i in r['Instances']:
@@ -88,7 +88,7 @@ class WatchData:
 
     def get_CPU_loads(self):
         """ Read instances load and store in data """
-        for instance in [i['InstanceId'] for i in self.group['Instances']]:
+        for instance in [i['InstanceId'] for i in self.group['Instances'] if i['LifecycleState'] == 'InService']:
             load = self.get_instance_CPU_load(instance)
             if load is None:
                 continue
@@ -160,11 +160,17 @@ class WatchData:
         for instance, load in self.loads.iteritems():
             if load is not None and self.measures[
                     instance] > 1 and self.instances > 1 and load < self.avg_load * 0.2 and load < 4:
-                self.emergency = True
-                self.check_avg_low() # Check if the desired instanes can be decreased
-                self.action = "Warning: terminated instance with low load (%s %5.2f%%) " % (instance, load)
-                self.kill_instance(instance, True)
-                return True
+                self.kill_counter += 1
+                if self.kill_counter > self.kill_counter_limit:
+                    self.emergency = True
+                    self.check_avg_low() # Check if the desired instanes can be decreased
+                    self.action = "Warning: terminated instance with low load (%s %5.2f%%) " % (instance, load)
+                    self.kill_counter = 0
+                    self.kill_instance(instance, True)
+                    return True
+            else:
+                self.kill_counter = 0
+
         return self.emergency
 
     def check_too_high(self):
@@ -183,6 +189,9 @@ class WatchData:
                     self.kill_counter = 0
                     self.kill_instance(instance, decrement)
                     return True
+            else:
+                self.kill_counter = 0
+
 
             if load > self.high_urgent:
                 self.emergency = True
@@ -198,16 +207,12 @@ class WatchData:
             self.high_counter = 0
             return False
 
-        threshold = self.high_limit
-        if self.instances == 1:
-            threshold = threshold * 0.90  # Increase faster if there is just one instance
-
-        if self.avg_load > threshold:
+        if self.avg_load > self.high_limit:
             self.high_counter += 1
             if self.high_counter > self.high_counter_limit:
                 self.high_counter = 0
                 self.action = "WARN, high load (%5.2f/%5.2f): %d -> %d " % (
-                    self.avg_load, threshold, self.instances,
+                    self.avg_load, self.high_limit, self.instances,
                     self.instances + 1)
                 self.set_desired(self.instances + 1)
                 return True
@@ -220,16 +225,12 @@ class WatchData:
             self.low_counter = 0
             return False
 
-        threshold = self.low_limit
-        if self.instances < 3:
-            threshold = threshold * 0.95
-
-        if self.total_load / (self.instances - 1) < threshold:
+        if self.total_load / (self.instances - 1) < self.low_limit:
             self.low_counter += 1
             if self.low_counter > self.low_counter_limit:
                 self.low_counter = 0
                 self.action = "low load (%5.2f/%5.2f): %d -> %d " % (
-                    self.avg_load, threshold, self.instances,
+                    self.avg_load, self.low_limit, self.instances,
                     self.instances - 1)
                 self.set_desired(self.instances - 1)
         else:
