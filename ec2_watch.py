@@ -100,22 +100,31 @@ def main():
         '%Y-%m-%d %H:%M:%S', time.localtime(data.up_ts)), time.strftime(
             '%Y-%m-%d %H:%M:%S', time.localtime(data.down_ts)))
 
+    changed = False
     if now - data.down_ts > LONG_PERIOD and now - data.action_ts > EMERGENCY_PERIOD and now - data.up_ts > SHORT_PERIOD:
-        data.check_too_high()
+        changed |= data.check_too_high()
 
     if now - data.changed_ts > LONG_PERIOD and now - data.action_ts > LONG_PERIOD:
-        data.check_too_low()
+        changed |= data.check_too_low()
 
     if now - data.changed_ts > SHORT_PERIOD and now - data.action_ts > SHORT_PERIOD:
-        data.check_avg_high()
+        changed |= data.check_avg_high()
 
     if now - data.changed_ts > SHORT_PERIOD and now - data.action_ts > SHORT_PERIOD and now - data.up_ts > LONG_PERIOD:
-        data.check_avg_low()
+        changed |= data.check_avg_low()
 
     data.store()
 
     if configuration.mail and data.emergency:
         sendmail(data, configuration.mail)
+
+    if changed:
+        print("Status changed")
+
+    if changed or data.emergency:
+        sys.exit(0)
+
+    sys.exit(1)
 
 
 def sendmail(data, to):

@@ -220,6 +220,9 @@ class WatchData:
         else:
             self.high_counter = 0
 
+        return False
+
+
     def check_avg_low(self):
         if self.instances <= self.min_size:
             self.low_counter = 0
@@ -233,8 +236,12 @@ class WatchData:
                     self.avg_load, self.low_limit, self.instances,
                     self.instances - 1)
                 self.set_desired(self.instances - 1)
+                return True
         else:
             self.low_counter = 0
+
+        return False
+
 
     def kill_instance(self, id, decrement):
         if self.action:
