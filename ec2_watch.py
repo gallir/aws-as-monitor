@@ -64,6 +64,14 @@ def main():
         data.high_counter = int(prev_data.high_counter)
     except AttributeError:
         data.high_counter = 0
+    try:
+        data.kill_high_counter = int(prev_data.kill_high_counter)
+    except AttributeError:
+        data.kill_high_counter = 0
+    try:
+        data.kill_low_counter = int(prev_data.kill_low_counter)
+    except AttributeError:
+        data.kill_low_counter = 0
 
     """ Calculate the trend, increasing or decreasing CPU usage """
     alpha = min((data.ts - prev_data.ts) / 60.0 * 0.3, 1)

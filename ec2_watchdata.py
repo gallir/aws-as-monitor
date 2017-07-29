@@ -42,7 +42,8 @@ class WatchData:
         self.down_ts = 0
         self.low_counter = 0  # count the consecutive times a low conditions has been observed
         self.high_counter = 0  # count the consecutive times a high conditions has been observed
-        self.kill_counter = 0  # count the consecutive times a kill instance condition has been obseirved
+        self.kill_low_counter = 0  # count the consecutive times a kill instance condition has been observed
+        self.kill_high_counter = 0  # count the consecutive times a kill instance condition has been observed
         self.max_loaded = None
         self.min_loaded = None
         self.loads = {}
@@ -157,41 +158,43 @@ class WatchData:
         pickle.dump(self, open(self.datafile, "wb"))
 
     def check_too_low(self):
+        candidates = False
         for instance, load in self.loads.iteritems():
             if load is not None and self.measures[
                     instance] > 1 and self.instances > 1 and load < self.avg_load * 0.2 and load < 4:
-                self.kill_counter += 1
-                if self.kill_counter > self.kill_counter_limit:
+                candidates = True
+                if self.kill_low_counter > self.kill_counter_limit:
                     self.emergency = True
                     self.check_avg_low() # Check if the desired instanes can be decreased
                     self.action = "Warning: terminated instance with low load (%s %5.2f%%) " % (instance, load)
-                    self.kill_counter = 0
+                    self.kill_low_counter = 0
                     self.kill_instance(instance, True)
                     return True
-            else:
-                self.kill_counter = 0
+
+        if candidates:
+            self.kill_low_counter += 1
+        else:
+            self.kill_low_counter = 0
 
         return self.emergency
 
     def check_too_high(self):
+        candidates = False
         for instance, load in self.loads.iteritems():
             if load is None or self.measures[instance] <= 1:
                 continue
             if self.instances > 2 and load > self.avg_load * 1.4:  # kill if it consumes more than 40% of the average
-                self.kill_counter += 1
-                if self.kill_counter > self.kill_counter_limit:
+                candidates = True
+                if self.kill_high_counter > self.kill_counter_limit:
                     self.emergency = True
                     self.action = "Emergency: kill bad instance with high load (%s %5.2f%%) " % (instance, load)
                     if self.avg_load < self.high_limit:
                         decrement = True
                     else:
                         decrement = False
-                    self.kill_counter = 0
+                    self.kill_high_counter = 0
                     self.kill_instance(instance, decrement)
                     return True
-            else:
-                self.kill_counter = 0
-
 
             if load > self.high_urgent:
                 self.emergency = True
@@ -199,6 +202,11 @@ class WatchData:
                 self.action += " increasing instances to %d" % (self.instances + 1, )
                 self.set_desired(self.instances + 1)
                 return True
+
+        if candidates:
+            self.kill_high_counter += 1
+        else:
+            self.kill_high_counter = 0
 
         return self.emergency
 
