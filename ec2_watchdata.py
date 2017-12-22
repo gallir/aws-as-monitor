@@ -15,6 +15,7 @@ class WatchData:
     low_limit = 70
     low_counter_limit = 0
     high_counter_limit = 0
+    urgent_counter_limit = 0
     kill_counter_limit = 0
     high_limit = 90
     high_urgent = 95
@@ -42,6 +43,7 @@ class WatchData:
         self.down_ts = 0
         self.low_counter = 0  # count the consecutive times a low conditions has been observed
         self.high_counter = 0  # count the consecutive times a high conditions has been observed
+        self.urgent_counter = 0  # count the consecutive times a high conditions has been observed
         self.kill_low_counter = 0  # count the consecutive times a kill instance condition has been observed
         self.kill_high_counter = 0  # count the consecutive times a kill instance condition has been observed
         self.max_loaded = None
@@ -66,13 +68,18 @@ class WatchData:
     def connect(self):
         self.autoscale = boto3.client('autoscaling')
         self.cw = boto3.client('cloudwatch')
-        g = self.autoscale.describe_auto_scaling_groups(AutoScalingGroupNames=[self.name], MaxRecords=100)
-        
+        g = self.autoscale.describe_auto_scaling_groups(
+            AutoScalingGroupNames=[self.name], MaxRecords=100)
+
         if len(g) < 1:
-          print("No instances found for AutoScaling group {}".format(self.name))
-          sys.exit(1)
+            print("No instances found for AutoScaling group {}".format(
+                self.name))
+            sys.exit(1)
         self.group = g['AutoScalingGroups'][0]
-        self.instances = len([i for i in self.group['Instances'] if i['LifecycleState'] == 'InService']) # Check "InService"
+        self.instances = len([
+            i for i in self.group['Instances']
+            if i['LifecycleState'] == 'InService'
+        ])  # Check "InService"
         self.desired = self.group['DesiredCapacity']
         self.max_size = self.group['MaxSize']
         self.min_size = self.group['MinSize']
@@ -81,7 +88,7 @@ class WatchData:
 
     def get_instances_info(self):
         ec2 = boto3.client('ec2')
-        ids = [i['InstanceId'] for i in self.group['Instances'] ]
+        ids = [i['InstanceId'] for i in self.group['Instances']]
         instances = ec2.describe_instances(InstanceIds=ids)
         for r in instances['Reservations']:
             for i in r['Instances']:
@@ -89,7 +96,10 @@ class WatchData:
 
     def get_CPU_loads(self):
         """ Read instances load and store in data """
-        for instance in [i['InstanceId'] for i in self.group['Instances'] if i['LifecycleState'] == 'InService']:
+        for instance in [
+                i['InstanceId'] for i in self.group['Instances']
+                if i['LifecycleState'] == 'InService'
+        ]:
             load = self.get_instance_CPU_load(instance)
             if load is None:
                 continue
@@ -104,7 +114,8 @@ class WatchData:
 
         measures = total_load = 0
         for instance, load in self.loads.iteritems():
-            if len(self.loads) < 3 or (instance != self.max_loaded and instance != self.min_loaded):
+            if len(self.loads) < 3 or (instance != self.max_loaded and
+                                       instance != self.min_loaded):
                 measures += 1
                 total_load += load
 
@@ -117,22 +128,25 @@ class WatchData:
 
         m = self.cw.get_metric_statistics(
             Namespace="AWS/EC2",
-            MetricName="CPUUtilization", 
-            Dimensions=[{"Name": "InstanceId", "Value": instance}],
+            MetricName="CPUUtilization",
+            Dimensions=[{
+                "Name": "InstanceId",
+                "Value": instance
+            }],
             StartTime=start,
             EndTime=end,
             Period=self.stats_period,
             Statistics=["Average"],
             Unit="Percent",
-            )
+        )
 
         if m['ResponseMetadata']['HTTPStatusCode'] != 200:
-          return None
+            return None
 
         if len(m['Datapoints']) > 0:
             self.measures[instance] = len(m['Datapoints'])
-            p =  [x['Average'] for x in m['Datapoints']]
-            return sum(p)/len(p)
+            p = [x['Average'] for x in m['Datapoints']]
+            return sum(p) / len(p)
             # ordered = sorted(m['Datapoints'], key=lambda x: x['Timestamp'])
             # return ordered[-1]['Average']  # Return last measure
 
@@ -165,8 +179,10 @@ class WatchData:
                 candidates = True
                 if self.kill_low_counter > self.kill_counter_limit:
                     self.emergency = True
-                    self.check_avg_low() # Check if the desired instanes can be decreased
-                    self.action = "Warning: terminated instance with low load (%s %5.2f%%) " % (instance, load)
+                    self.check_avg_low(
+                    )  # Check if the desired instanes can be decreased
+                    self.action = "Warning: terminated instance with low load (%s %5.2f%%) " % (
+                        instance, load)
                     self.kill_low_counter = 0
                     self.kill_instance(instance, True)
                     return True
@@ -180,6 +196,7 @@ class WatchData:
 
     def check_too_high(self):
         candidates = False
+        highload = False
         for instance, load in self.loads.iteritems():
             if load is None or self.measures[instance] <= 1:
                 continue
@@ -187,7 +204,8 @@ class WatchData:
                 candidates = True
                 if self.kill_high_counter > self.kill_counter_limit:
                     self.emergency = True
-                    self.action = "Emergency: kill bad instance with high load (%s %5.2f%%) " % (instance, load)
+                    self.action = "Emergency: kill bad instance with high load (%s %5.2f%%) " % (
+                        instance, load)
                     if self.avg_load < self.high_limit:
                         decrement = True
                     else:
@@ -197,16 +215,28 @@ class WatchData:
                     return True
 
             if load > self.high_urgent:
-                self.emergency = True
-                self.action = "Emergency: high load in one instance (%s %5.2f%%) " % (instance, load)
-                self.action += " increasing instances to %d" % (self.instances + 1, )
-                self.set_desired(self.instances + 1)
-                return True
+                highload = True
+                if self.urgent_counter_limit > 0 and self.urgent_counter > self.urgent_counter_limit:
+                    self.emergency = True
+                    self.action = "Emergency: high load in one instance (%s %5.2f%% limit: %d counter: %d) " % (
+                        instance, load, self.urgent_counter_limit, elf.urgent_counter)
+                    self.action += " increasing instances to %d" % (
+                        self.instances + 1, )
+                    self.set_desired(self.instances + 1)
+                    self.urgent_counter = 0
+                    return True
+            else:
+              self.urgent_counter = 0
 
         if candidates:
             self.kill_high_counter += 1
         else:
             self.kill_high_counter = 0
+
+        if highload:
+            self.urgent_counter += 1
+        else:
+            self.urgent_counter = 0
 
         return self.emergency
 
@@ -223,6 +253,7 @@ class WatchData:
                     self.avg_load, self.high_limit, self.instances,
                     self.instances + 1)
                 self.set_desired(self.instances + 1)
+                self.high_counter = 0
                 return True
 
         else:
@@ -230,9 +261,8 @@ class WatchData:
 
         return False
 
-
     def check_avg_low(self):
-        if self.instances <= self.min_size:
+        if self.instances <= self.min_size or self.instances <= 1:
             self.low_counter = 0
             return False
 
@@ -244,12 +274,12 @@ class WatchData:
                     self.avg_load, self.low_limit, self.instances,
                     self.instances - 1)
                 self.set_desired(self.instances - 1)
+                self.low_counter = 0
                 return True
         else:
             self.low_counter = 0
 
         return False
-
 
     def kill_instance(self, id, decrement):
         if self.action:
@@ -265,7 +295,8 @@ class WatchData:
             decrement = False
             syslog.syslog(syslog.LOG_INFO, "Forced to create a new instance")
 
-        self.autoscale.terminate_instance_in_auto_scaling_group(InstanceId=id, ShouldDecrementDesiredCapacity=decrement)
+        self.autoscale.terminate_instance_in_auto_scaling_group(
+            InstanceId=id, ShouldDecrementDesiredCapacity=decrement)
         self.action_ts = time.time()
 
     def set_desired(self, desired):
@@ -277,6 +308,7 @@ class WatchData:
         if self.dry:
             return
         if desired >= self.min_size and desired <= self.max_size:
-            self.autoscale.set_desired_capacity(AutoScalingGroupName=self.name, DesiredCapacity=desired)
+            self.autoscale.set_desired_capacity(
+                AutoScalingGroupName=self.name, DesiredCapacity=desired)
         self.action_ts = time.time()
         self.new_desired = desired

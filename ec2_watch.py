@@ -38,8 +38,11 @@ def main():
         WatchData.low_counter_limit = configuration.low_counter
     if configuration.high_counter:
         WatchData.high_counter_limit = configuration.high_counter
+    if configuration.urgent_counter:
+        WatchData.urgent_counter_limit = configuration.urgent_counter
     if configuration.kill_counter:
         WatchData.kill_counter_limit = configuration.kill_counter
+
 
     try:
         data.connect()
@@ -64,6 +67,10 @@ def main():
         data.high_counter = int(prev_data.high_counter)
     except AttributeError:
         data.high_counter = 0
+    try:
+        data.urgent_counter = int(prev_data.urgent_counter)
+    except AttributeError:
+        data.urgent_counter = 0
     try:
         data.kill_high_counter = int(prev_data.kill_high_counter)
     except AttributeError:
@@ -195,8 +202,13 @@ if __name__ == '__main__':
     parser.add_argument(
         "--high_counter",
         type=int,
-        default=3,
+        default=5,
         help="Minimum times above limit before increasing fleet")
+    parser.add_argument(
+        "--urgent_counter",
+        type=int,
+        default=3,
+        help="Minimum times above limit before increasing fleet due to urgent threshold")
     parser.add_argument(
         "--kill_counter",
         type=int,
