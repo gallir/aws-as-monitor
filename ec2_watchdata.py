@@ -219,7 +219,7 @@ class WatchData:
                 if self.urgent_counter_limit > 0 and self.urgent_counter > self.urgent_counter_limit:
                     self.emergency = True
                     self.action = "Emergency: high load in one instance (%s %5.2f%% limit: %d counter: %d) " % (
-                        instance, load, self.urgent_counter_limit, elf.urgent_counter)
+                        instance, load, self.urgent_counter_limit, self.urgent_counter)
                     self.action += " increasing instances to %d" % (
                         self.instances + 1, )
                     self.set_desired(self.instances + 1)
