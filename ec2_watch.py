@@ -13,8 +13,8 @@ import os
 import boto
 from ec2_watchdata import WatchData
 
-LONG_PERIOD = 1080 # to check too low or low average
-SHORT_PERIOD = 600 # to check averages
+LONG_PERIOD = 600 # to check too low or low average
+SHORT_PERIOD = 240 # to check averages
 EMERGENCY_PERIOD = 120 # to check situations like very high in one instance
 
 
@@ -42,6 +42,8 @@ def main():
         WatchData.urgent_counter_limit = configuration.urgent_counter
     if configuration.kill_counter:
         WatchData.kill_counter_limit = configuration.kill_counter
+    if configuration.increment:
+        WatchData.increment = configuration.increment
 
 
     try:
@@ -116,7 +118,7 @@ def main():
             '%Y-%m-%d %H:%M:%S', time.localtime(data.down_ts)))
 
     changed = False
-    if now - data.down_ts > LONG_PERIOD and now - data.action_ts > EMERGENCY_PERIOD and now - data.up_ts > SHORT_PERIOD:
+    if now - data.action_ts > EMERGENCY_PERIOD and now - data.up_ts > SHORT_PERIOD:
         changed |= data.check_too_high()
 
     if now - data.changed_ts > LONG_PERIOD and now - data.action_ts > LONG_PERIOD:
@@ -188,6 +190,12 @@ if __name__ == '__main__':
         help="Send email to this address when took an emergency action")
     parser.add_argument(
         "--dry", "-d", action="store_true", help="Do not take actions")
+    parser.add_argument(
+        "--increment",
+        "-inc",
+        type=int,
+        default=1,
+        help="Number of instances to add")
     parser.add_argument(
         "--low",
         "-low",

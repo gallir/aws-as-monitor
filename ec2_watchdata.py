@@ -21,6 +21,7 @@ class WatchData:
     high_urgent = 95
     stats_period = 60
     history_size = 0
+    increment = 1
 
     def __init__(self, name):
         self.name = name
@@ -94,13 +95,13 @@ class WatchData:
             for i in r['Instances']:
                 self.instances_info[i['InstanceId']] = i
 
-    def get_CPU_loads(self):
+    def get_CPU_loads(self, periods=3):
         """ Read instances load and store in data """
         for instance in [
                 i['InstanceId'] for i in self.group['Instances']
                 if i['LifecycleState'] == 'InService'
         ]:
-            load = self.get_instance_CPU_load(instance)
+            load = self.get_instance_CPU_load(instance, periods)
             if load is None:
                 continue
             self.total_load += load
@@ -122,9 +123,9 @@ class WatchData:
         if measures > 0:
             self.avg_load = total_load / measures
 
-    def get_instance_CPU_load(self, instance):
+    def get_instance_CPU_load(self, instance, periods=3):
         end = datetime.datetime.now()
-        start = end - datetime.timedelta(seconds=int(self.stats_period * 3))
+        start = end - datetime.timedelta(seconds=int(max(120, self.stats_period * periods)))
 
         m = self.cw.get_metric_statistics(
             Namespace="AWS/EC2",
@@ -200,7 +201,7 @@ class WatchData:
         for instance, load in self.loads.iteritems():
             if load is None or self.measures[instance] <= 1:
                 continue
-            if self.instances > 2 and load > self.avg_load * 1.4:  # kill if it consumes more than 40% of the average
+            if self.instances > 2 and load > self.avg_load * (1.2 + 0.6/self.instances):  # kill if it consumes more than 20... % of the average
                 candidates = True
                 if self.kill_high_counter > self.kill_counter_limit:
                     self.emergency = True
@@ -214,15 +215,15 @@ class WatchData:
                     self.kill_instance(instance, decrement)
                     return True
 
-            if load > self.high_urgent:
+            if self.instances < self.max_size and load > self.high_urgent:
                 highload = True
                 if self.urgent_counter_limit > 0 and self.urgent_counter > self.urgent_counter_limit:
                     self.emergency = True
                     self.action = "Emergency: high load in one instance (%s %5.2f%% limit: %d counter: %d) " % (
                         instance, load, self.urgent_counter_limit, self.urgent_counter)
                     self.action += " increasing instances to %d" % (
-                        self.instances + 1, )
-                    self.set_desired(self.instances + 1)
+                        self.instances + self.increment, )
+                    self.set_desired(self.instances + self.increment)
                     self.urgent_counter = 0
                     return True
             else:
@@ -251,8 +252,8 @@ class WatchData:
                 self.high_counter = 0
                 self.action = "WARN, high load (%5.2f/%5.2f): %d -> %d " % (
                     self.avg_load, self.high_limit, self.instances,
-                    self.instances + 1)
-                self.set_desired(self.instances + 1)
+                    self.instances + self.increment)
+                self.set_desired(self.instances + self.increment)
                 self.high_counter = 0
                 return True
 
@@ -269,7 +270,6 @@ class WatchData:
         if self.total_load / (self.instances - 1) < self.low_limit:
             self.low_counter += 1
             if self.low_counter > self.low_counter_limit:
-                self.low_counter = 0
                 self.action = "low load (%5.2f/%5.2f): %d -> %d " % (
                     self.avg_load, self.low_limit, self.instances,
                     self.instances - 1)

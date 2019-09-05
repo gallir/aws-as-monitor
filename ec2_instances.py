@@ -14,7 +14,7 @@ def main():
     data.connect()
     data.get_instances_info()
     """ Check if we must change the desired instances """
-    if configuration.instances > 1:
+    if configuration.instances > 0:
         desired = configuration.instances
         if desired > 0 and abs(data.instances - desired) < 3:
             data.set_desired(desired)
@@ -24,18 +24,26 @@ def main():
         exit(0)
 
     if configuration.kill:
-        if configuration.kill in [x.id for x in data.instances_info]:
+        if configuration.kill in [x for x in data.instances_info]:
             data.kill_instance(configuration.kill, True)
         else:
             print "Instance", configuration.kill, "doesn't exist"
 
         exit(0)
 
-    data.get_CPU_loads()
+    data.get_CPU_loads(1)
+
+    if 'LaunchConfigurationName' in data.group:
+        launch = data.group['LaunchConfigurationName']
+    elif 'LaunchTemplate' in data.group and 'LaunchTemplateName' in data.group['LaunchTemplate']:
+        launch = data.group['LaunchTemplate']['LaunchTemplateName']
+    else:
+        launch = 'unknown'
 
     print "Group values: instances: %d min: %d max: %d desired: %d Launch config: %s" % (
         data.instances, data.min_size, data.max_size,
-        data.desired, data.group['LaunchConfigurationName'])
+        data.desired, launch)
+
 
     for i, d in data.instances_info.iteritems():
 
@@ -61,10 +69,10 @@ def main():
         else:
             print
 
-    print "Average load: %5.2f%%" % (data.avg_load, )
+    print "Average load: %5.2f" % (data.avg_load, )
 
     if data.instances > 1:
-        print "Average load with %d instances: %5.2f%%" % (
+        print "Average load with %d instances: %5.2f" % (
             data.instances - 1, data.total_load / (data.instances - 1))
 
 
